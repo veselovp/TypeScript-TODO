@@ -11,11 +11,26 @@ function autobind(_: any, _2: string, descriptor: PropertyDescriptor) {
   return adjDescriptor
 }
 
+// ------------
+// object
+enum ProjectStatus {
+  Active,
+  Finished,
+}
+class Project {
+  constructor(
+    public id: string,
+    public description: string,
+    public quantity: number,
+    public status: ProjectStatus
+  ) {}
+}
 // State managment in singltone way
+type Listner = (items: Project[]) => void
 
 class Statemanager {
-  private listner: any[] = []
-  private projects: any[] = []
+  private listner: Listner[] = []
+  private projects: Project[] = []
   private static instance: Statemanager
 
   private constructor() {}
@@ -30,18 +45,20 @@ class Statemanager {
 
   // creating object
   addProject(description: string, quantity: number) {
-    const newProject = {
-      id: Math.random().toString(),
-      description: description,
-      quantity: quantity,
-    }
+    const newProject = new Project(
+      Math.random().toString(),
+      description,
+      quantity,
+      ProjectStatus.Active
+    )
+
     this.projects.push(newProject)
     for (const listenerFn of this.listner) {
       listenerFn(this.projects.slice())
     }
   }
 
-  addListener(listenerFn: Function) {
+  addListener(listenerFn: Listner) {
     this.listner.push(listenerFn)
   }
 }
@@ -99,7 +116,7 @@ class ListTodo {
   template: HTMLTemplateElement
   hostElem: HTMLDivElement
   form: HTMLElement
-  assignedProjects: any[]
+  assignedProjects: Project[]
 
   // @@@@@@@RENDERING PROJECTS LIST
   constructor(private type: 'active' | 'finish') {
@@ -112,8 +129,14 @@ class ListTodo {
     this.form = elelemnt.firstElementChild as HTMLElement
     this.form.id = `${this.type}-project`
 
-    globalState.addListener((projects: any[]) => {
-      this.assignedProjects = projects
+    globalState.addListener((projects: Project[]) => {
+      const relevantProjects = projects.filter((prj) => {
+        if (this.type === 'active') {
+          return prj.status === ProjectStatus.Active
+        }
+        return prj.status === ProjectStatus.Finished
+      })
+      this.assignedProjects = relevantProjects
       this.renderProjects()
     })
     this.render()
@@ -124,6 +147,7 @@ class ListTodo {
     const listEl = document.getElementById(
       `${this.type}-projects-list`
     ) as HTMLUListElement
+    listEl.innerHTML = ''
     for (const prjItem of this.assignedProjects) {
       const listItem = document.createElement('li')
       listItem.textContent = prjItem.description
@@ -134,7 +158,9 @@ class ListTodo {
   private renderContent() {
     const listId = `${this.type}-projects-list`
 
-    this.form.querySelector('h2')!.textContent = `${this.type}-projects`
+    this.form.querySelector(
+      'h2'
+    )!.textContent = `${this.type}-projects`
     this.form.querySelector('ul')!.id = listId
   }
 
